@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { connectAlertsStream } from "../src/utils/sse";
 
 export default function NotificationScreen({ route, navigation }) {
   const [notifications, setNotifications] = useState([]);
@@ -10,6 +12,32 @@ export default function NotificationScreen({ route, navigation }) {
       setNotifications(prev => [route.params.newAlert, ...prev]);
     }
   }, [route.params?.newAlert]);
+
+  // Connect to SSE stream for realtime alerts
+  useEffect(() => {
+    let disconnect = null;
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      disconnect = connectAlertsStream(token,
+        (evt) => {
+          if (evt.type === 'snapshot') {
+            // initial snapshot is an array of alerts
+            setNotifications(prev => [...evt.data, ...prev]);
+          } else if (evt.type === 'alert') {
+            setNotifications(prev => [evt.data, ...prev]);
+          } else if (evt.type === 'message') {
+            // ignore generic messages
+          }
+        },
+        () => console.log('SSE open'),
+        (err) => console.warn('SSE error', err)
+      );
+    })();
+
+    return () => {
+      if (disconnect) disconnect();
+    };
+  }, []);
 
   const renderItem = ({ item }) => (
     <View style={styles.alertItem}>

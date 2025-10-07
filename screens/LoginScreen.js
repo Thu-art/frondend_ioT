@@ -1,10 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { AuthContext } from "../src/context/AuthProvider";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { signIn } = useContext(AuthContext);
+
+  const handleLogin = async () => {
+    try {
+      await signIn({ email, password });
+      navigation.replace("DeviceListScreen");
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Login failed';
+      alert(msg);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -16,6 +28,7 @@ export default function LoginScreen({ navigation }) {
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
       />
 
       <TextInput
@@ -26,12 +39,11 @@ export default function LoginScreen({ navigation }) {
         secureTextEntry
       />
 
-      <TouchableOpacity onPress={() => navigation.navigate("DeviceListScreen")}>
-  <LinearGradient colors={["#ff4444", "#ff8888"]} style={styles.button}>
-    <Text style={styles.buttonText}>Đăng nhập</Text>
-  </LinearGradient>
-</TouchableOpacity>
-
+      <TouchableOpacity onPress={handleLogin}>
+        <LinearGradient colors={["#ff4444", "#ff8888"]} style={styles.button}>
+          <Text style={styles.buttonText}>Đăng nhập</Text>
+        </LinearGradient>
+      </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
         <Text style={styles.link}>Chưa có tài khoản? Đăng ký</Text>

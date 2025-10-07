@@ -25,5 +25,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     }
+    ,
+    "extra": {
+      "API_BASE_URL": "http://172.21.117.82:4000"
+    }
   }
 }

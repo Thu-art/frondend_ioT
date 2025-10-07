@@ -1,15 +1,22 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { AuthContext } from "../src/context/AuthProvider";
 
 export default function SignupScreen({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { signUp } = useContext(AuthContext);
 
-  const handleSignup = () => {
-    alert("Đăng ký thành công!");
-    navigation.replace("LoginScreen");
+  const handleSignup = async () => {
+    try {
+      await signUp({ name, email, password });
+      navigation.replace("DeviceListScreen");
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Signup failed';
+      alert(msg);
+    }
   };
 
   return (
@@ -28,6 +35,7 @@ export default function SignupScreen({ navigation }) {
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
         placeholder="Mật khẩu"
