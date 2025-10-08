@@ -31,7 +31,8 @@ export default function FireAlertScreen({ navigation, route }) {
   const handleSafe = () => {
     Vibration.cancel();
     // Gửi cảnh báo về NotificationScreen
-    const alert = { deviceName, time: new Date().toLocaleString() };
+    const iso = new Date().toISOString();
+    const alert = { deviceName, time: iso, syncKey: `${deviceName}::${iso}` };
     navigation.navigate("NotificationScreen",{ newAlert: alert });
   };
 

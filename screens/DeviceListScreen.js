@@ -1,13 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { listDevices } from "../src/services/deviceService";
 
 export default function DeviceListScreen({ navigation, route }) {
   const [devices, setDevices] = useState([]);
 
   // Nhận thiết bị mới từ AddDeviceScreen
   useEffect(() => {
-    if (route.params?.newDevice) {
-      setDevices(prev => [route.params.newDevice, ...prev]);
+    let mounted = true;
+    (async () => {
+      try {
+        const serverDevices = await listDevices();
+        if (!mounted) return;
+        // map server device shape to UI shape
+        const mapped = serverDevices.map(d => ({ deviceId: d.code, deviceName: d.name, location: d.location, id: d.id }));
+        setDevices(mapped);
+      } catch (err) {
+        // ignore, show empty list
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, []);
+
+  // handle optimistic navigation param (after creating a device)
+  useEffect(() => {
+    const newDev = route.params?.newDevice;
+    if (newDev) {
+      setDevices(prev => {
+        // avoid duplicate by deviceId
+        if (prev.some(d => d.deviceId === newDev.deviceId)) return prev;
+        return [newDev, ...prev];
+      });
     }
   }, [route.params?.newDevice]);
 

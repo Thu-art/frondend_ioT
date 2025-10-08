@@ -2,21 +2,29 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { addDevice } from "../src/services/deviceService";
 
 export default function AddDeviceScreen({ navigation }) {
   const [deviceId, setDeviceId] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [location, setLocation] = useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!deviceId || !deviceName || !location) {
       alert("Vui lòng điền đầy đủ thông tin!");
       return;
     }
 
-    const newDevice = { deviceId, deviceName, location };
-    // Trả dữ liệu về DeviceListScreen
-    navigation.navigate("DeviceListScreen", { newDevice });
+    try {
+      // call backend to persist device (backend expects { code, name, location })
+      const created = await addDevice({ code: deviceId.trim(), name: deviceName.trim(), location: location.trim() });
+      // Normalize device for DeviceListScreen UI
+      const newDevice = { deviceId: created.code || deviceId, deviceName: created.name || deviceName, location: created.location || location, id: created.id };
+      navigation.navigate("DeviceListScreen", { newDevice });
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Lưu thiết bị thất bại';
+      alert(msg);
+    }
   };
 
   return (
