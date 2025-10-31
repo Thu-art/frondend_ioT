@@ -1,47 +1,104 @@
-// SSE helper fallback for React Native: use polling against /alerts endpoint.
-// Switch to axios client so auth tokens and refresh logic are handled centrally.
-import client from '../api/client';
+// Prefer native EventSource (real SSE) and fall back to polling if unavailable.
+// Keeps the same callback shape for consumers.
+import { API_BASE_URL } from '../config/apiConfig';
 
-export function connectAlertsStream(token, onEvent, onOpen, onError) {
+function startPolling({ baseUrl, token, onEvent, onOpen, onError }) {
   let stopped = false;
   let lastSeenId = null;
+  let timer = null;
 
-  async function poll() {
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const poll = async () => {
     if (stopped) return;
     try {
-      // fetch active alerts via axios client (handles Authorization + refresh automatically)
-      const res = await client.get('/alerts', { params: { active: true } });
-      if (res && res.status === 200) {
-        const body = res.data || {};
-        const alerts = body.alerts || [];
+      const res = await fetch(`${baseUrl}/alerts?active=true`, { headers: authHeaders });
+      if (res.ok) {
+        const body = await res.json();
+        const alerts = body?.alerts || [];
         if (!lastSeenId && alerts.length) {
-          // initial snapshot
           lastSeenId = alerts[0].id;
-          onEvent({ type: 'snapshot', data: alerts });
+          onEvent?.({ type: 'snapshot', data: alerts });
         } else if (alerts.length) {
-          // find new alerts with id greater than lastSeenId (assuming auto-increment ids)
           const newAlerts = lastSeenId ? alerts.filter(a => a.id > lastSeenId) : alerts;
           if (newAlerts.length) {
             lastSeenId = newAlerts[0].id;
-            // emit in chronological order newest-first
-            for (const a of newAlerts) onEvent({ type: 'alert', data: a });
+            for (const alert of newAlerts) onEvent?.({ type: 'alert', data: alert });
           }
         }
       } else {
-        onError && onError(new Error('Polling failed'));
+        onError?.(new Error('Polling failed'));
       }
     } catch (err) {
-      onError && onError(err);
+      onError?.(err);
+    } finally {
+      if (!stopped) timer = setTimeout(poll, 5000);
     }
-    // poll again after interval
-    setTimeout(poll, 5000);
+  };
+
+  onOpen?.();
+  poll();
+
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
+}
+
+export function connectAlertsStream(token, onEvent, onOpen, onError) {
+  const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
+  const EventSourceImpl = global?.NativeEventSource || global?.EventSource;
+
+  if (!EventSourceImpl) {
+    return startPolling({ baseUrl, token, onEvent, onOpen, onError });
   }
 
-  // start
-  setTimeout(() => {
-    onOpen && onOpen();
-    poll();
-  }, 0);
+  const url = `${baseUrl}/stream/alerts${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  let closed = false;
+  let fallbackCleanup = null;
+  let source;
 
-  return () => { stopped = true; };
+  try {
+    source = new EventSourceImpl(url);
+  } catch (err) {
+    onError?.(err);
+    return startPolling({ baseUrl, token, onEvent, onOpen, onError });
+  }
+
+  const cleanup = () => {
+    closed = true;
+    source.close();
+    if (fallbackCleanup) {
+      fallbackCleanup();
+      fallbackCleanup = null;
+    }
+  };
+
+  const deliver = (type, raw) => {
+    if (closed || raw == null) return;
+    try {
+      const parsed = raw.length ? JSON.parse(raw) : null;
+      if (parsed !== null) onEvent?.({ type, data: parsed });
+    } catch (err) {
+      onError?.(err);
+    }
+  };
+
+  source.addEventListener('open', () => {
+    if (!closed) onOpen?.();
+  });
+
+  source.addEventListener('snapshot', (evt) => deliver('snapshot', evt?.data));
+  source.addEventListener('alert', (evt) => deliver('alert', evt?.data));
+  source.addEventListener('error', (evt) => {
+    if (closed) return;
+    const err = evt instanceof Error ? evt : new Error('SSE connection error');
+    onError?.(err);
+    source.close();
+    if (!fallbackCleanup) {
+      fallbackCleanup = startPolling({ baseUrl, token, onEvent, onOpen, onError });
+    }
+  });
+
+  return cleanup;
 }
