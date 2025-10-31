@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Video } from "expo-av";
 import { useEffect, useState } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity, Vibration, View, Alert } from "react-native";
+import { markSafe } from "../src/services/deviceService";
 
 export default function FireAlertScreen({ navigation, route }) {
   const deviceName = route?.params?.deviceName || "Thiết bị không xác định";
@@ -28,11 +29,19 @@ export default function FireAlertScreen({ navigation, route }) {
     outputRange:["#ff0000","#ffffff"],
   });
 
-  const handleSafe = () => {
+  const handleSafe = async () => {
+    try {
+      const deviceId = route?.params?.deviceId;
+      if (deviceId) {
+        await markSafe(deviceId);
+      }
+    } catch (e) {
+      // ignore
+    }
     Vibration.cancel();
     const iso = new Date().toISOString();
-    const alert = { deviceName, time: iso, syncKey: `${deviceName}::${iso}` };
-    navigation.navigate("NotificationScreen",{ newAlert: alert });
+    const alert = { deviceName, deviceId: route?.params?.deviceId || null, time: iso, syncKey: `${deviceName}::${iso}` };
+    navigation.navigate("NotificationScreen", { newAlert: alert });
   };
 
   return (

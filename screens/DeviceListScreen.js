@@ -62,7 +62,7 @@ export default function DeviceListScreen({ navigation, route }) {
         <Text style={styles.deviceLocation}>Vị trí: {item.location}</Text>
         <TouchableOpacity
           style={styles.alertButton}
-          onPress={() => navigation.navigate("FireAlertScreen", { deviceName: item.deviceName })}
+          onPress={() => navigation.navigate("FireAlertScreen", { deviceName: item.deviceName, deviceId: item.id })}
         >
           <Text style={styles.alertButtonText}>🚨 Cảnh báo</Text>
         </TouchableOpacity>

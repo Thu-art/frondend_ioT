@@ -11,13 +11,17 @@ export default function LoginScreen({ navigation }) {
   const { signIn } = useContext(AuthContext);
 
   const handleLogin = async () => {
-    // try {
-    //   await signIn({ email, password });
+    if (!email || !password) {
+      alert("Vui lòng nhập email và mật khẩu");
+      return;
+    }
+    try {
+      await signIn({ email, password });
       navigation.replace("DeviceListScreen");
-    // } catch (err) {
-    //   const msg = err?.response?.data?.error || err.message || 'Login failed';
-    //   alert(msg);
-    // }
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Đăng nhập thất bại';
+      alert(msg);
+    }
   };
 
   return (
