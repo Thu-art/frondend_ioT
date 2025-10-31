@@ -117,16 +117,11 @@ export default function DeviceListScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Hàng nút 2: Thông báo + Cảnh báo */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate("NotificationScreen")}>
-          <Text style={styles.buttonText}>📢 Thông báo</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.alertButtonRow} onPress={() => navigation.navigate("FireAlertScreen")}>
-          <Text style={styles.buttonText}>🚨 Cảnh báo</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Nút vào màn thông báo */}
+      <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate("NotificationScreen")}>
+        <Ionicons name="notifications-outline" size={20} color="#fff" style={styles.notificationIcon} />
+        <Text style={styles.notificationText}>Thông báo</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -150,8 +145,24 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
   addButton: { flex: 1, backgroundColor: "#00cc44", padding: 15, borderRadius: 12, alignItems: "center", marginRight: 10 },
   deleteButton: { flex: 1, backgroundColor: "#ff4444", padding: 15, borderRadius: 12, alignItems: "center", marginLeft: 10 },
-  notificationButton: { flex: 1, backgroundColor: "#ff8800", padding: 15, borderRadius: 12, alignItems: "center", marginRight: 10 },
-  alertButtonRow: { flex: 1, backgroundColor: "#ff4444", padding: 15, borderRadius: 12, alignItems: "center", marginLeft: 10 },
+  notificationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    width: "65%",
+    marginTop: 16,
+    backgroundColor: "#ff6b2c",
+    paddingVertical: 14,
+    borderRadius: 20,
+    shadowColor: "#ff6b2c",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6
+  },
+  notificationIcon: { marginRight: 8 },
+  notificationText: { color: "#fff", fontSize: 17, fontWeight: "600" },
 
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   disabledButton: { opacity: 0.5 }
