@@ -1,22 +1,18 @@
 // SSE helper fallback for React Native: use polling against /alerts endpoint.
-// This avoids Node-only polyfills and works reliably on Expo/RN.
-import { API_BASE_URL } from '../config/apiConfig';
+// Switch to axios client so auth tokens and refresh logic are handled centrally.
+import client from '../api/client';
 
 export function connectAlertsStream(token, onEvent, onOpen, onError) {
-  const urlBase = API_BASE_URL;
   let stopped = false;
   let lastSeenId = null;
 
   async function poll() {
     if (stopped) return;
     try {
-      // fetch active alerts; the backend supports ?active=true
-      const qs = '?active=true';
-      const res = await fetch(`${urlBase}/alerts${qs}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (res.ok) {
-        const body = await res.json();
+      // fetch active alerts via axios client (handles Authorization + refresh automatically)
+      const res = await client.get('/alerts', { params: { active: true } });
+      if (res && res.status === 200) {
+        const body = res.data || {};
         const alerts = body.alerts || [];
         if (!lastSeenId && alerts.length) {
           // initial snapshot

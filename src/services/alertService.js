@@ -9,3 +9,8 @@ export async function listAlerts({ active = true } = {}) {
   const res = await client.get(`/alerts?active=${active}`);
   return res.data.alerts;
 }
+
+export async function ackAlert(id) {
+  const res = await client.patch(`/alerts/${id}/ack`);
+  return res.data.alert;
+}

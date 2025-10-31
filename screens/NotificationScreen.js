@@ -3,23 +3,37 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from "react
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import { connectAlertsStream } from "../src/utils/sse";
-import { createAlert } from "../src/services/alertService";
+import { createAlert, ackAlert } from "../src/services/alertService";
 
 export default function NotificationScreen({ route, navigation }) {
   const [notifications, setNotifications] = useState([]);
+
+  function fmt(ts) {
+    try {
+      if (!ts) return new Date().toLocaleString('vi-VN');
+      const s = typeof ts === 'string' ? ts.replace(' ', 'T') : ts;
+      const d = new Date(s);
+      return isNaN(d) ? new Date().toLocaleString('vi-VN') : d.toLocaleString('vi-VN');
+    } catch {
+      return new Date().toLocaleString('vi-VN');
+    }
+  }
 
   useEffect(() => {
     if (route.params?.newAlert) {
       const raw = route.params.newAlert;
       const norm = {
         id: raw.id || Date.now(),
-        deviceName: raw.deviceName || raw.device_name || raw.device || 'Thiết bị',
-        time: raw.time || raw.created_at || new Date().toISOString(),
+        deviceName: raw.deviceName || raw.device_name || raw.device || 'Thi���t b��<',
+        deviceId: raw.deviceId || raw.device_id || null,
+        time: fmt(raw.time || raw.created_at),
         message: raw.message || ''
       };
       (async () => {
         try {
-          const key = 'localAlerts';
+          const uStr = await AsyncStorage.getItem('user');
+          const uid = uStr ? (JSON.parse(uStr).id || 'anon') : 'anon';
+          const key = `localAlerts:${uid}`;
           const rawList = await AsyncStorage.getItem(key);
           const list = rawList ? JSON.parse(rawList) : [];
           const withSync = { ...norm, syncKey: raw.syncKey || `${norm.deviceName}::${norm.time}` };
@@ -27,7 +41,9 @@ export default function NotificationScreen({ route, navigation }) {
             const newList = [withSync, ...list];
             await AsyncStorage.setItem(key, JSON.stringify(newList));
             try {
-              await createAlert({ code: withSync.deviceName, type: 'smoke', level: 0, message: withSync.message, syncKey: withSync.syncKey });
+              if (withSync.deviceId) {
+                await createAlert({ device_id: withSync.deviceId, type: 'smoke', level: 0, message: withSync.message, syncKey: withSync.syncKey });
+              }
               const remaining = newList.filter(l => l.syncKey !== withSync.syncKey);
               await AsyncStorage.setItem(key, JSON.stringify(remaining));
             } catch (e) {}
@@ -41,7 +57,9 @@ export default function NotificationScreen({ route, navigation }) {
   useEffect(() => {
     let disconnect = null;
     (async () => {
-      const key = 'localAlerts';
+      const uStr = await AsyncStorage.getItem('user');
+      const uid = uStr ? (JSON.parse(uStr).id || 'anon') : 'anon';
+      const key = `localAlerts:${uid}`;
       try {
         const rawList = await AsyncStorage.getItem(key);
         const list = rawList ? JSON.parse(rawList) : [];
@@ -57,7 +75,7 @@ export default function NotificationScreen({ route, navigation }) {
             const mapped = (evt.data || []).map(a => ({
               id: a.id,
               deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị',
-              time: a.created_at || a.createdAt || new Date().toLocaleString(),
+              time: fmt(a.created_at || a.createdAt),
               message: a.message || ''
             }));
             setNotifications(prev => {
@@ -67,7 +85,7 @@ export default function NotificationScreen({ route, navigation }) {
             });
           } else if (evt.type === 'alert') {
             const a = evt.data;
-            const norm = { id: a.id, deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị', time: a.created_at || a.createdAt || new Date().toLocaleString(), message: a.message || '' };
+            const norm = { id: a.id, deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị', time: fmt(a.created_at || a.createdAt), message: a.message || '' };
             setNotifications(prev => [norm, ...prev]);
           }
         },
@@ -79,10 +97,23 @@ export default function NotificationScreen({ route, navigation }) {
     return () => { if (disconnect) disconnect(); };
   }, []);
 
+  const handleAck = async (item) => {
+    if (!item?.id) return;
+    try {
+      await ackAlert(item.id);
+      setNotifications(prev => prev.filter(n => n.id !== item.id));
+    } catch (e) {}
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.alertItem}>
       <Text style={styles.alertText}>🔥 {item.deviceName}</Text>
       <Text style={styles.alertTime}>{item.time}</Text>
+      {item.id ? (
+        <TouchableOpacity style={styles.ackButton} onPress={() => handleAck(item)}>
+          <Text style={styles.ackButtonText}>Đã xử lý</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -145,4 +176,6 @@ const styles = StyleSheet.create({
   alertItem: { backgroundColor: "#fff", padding: 15, borderRadius: 12, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3 },
   alertText: { fontSize: 18, fontWeight: "bold", color: "#ff4444" },
   alertTime: { fontSize: 14, color: "#555", marginTop: 4 },
+  ackButton: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#28a745', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  ackButtonText: { color: '#fff', fontWeight: 'bold' },
 });
