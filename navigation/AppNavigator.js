@@ -25,10 +25,11 @@ export default function AppNavigator() {
         if (evt.type === 'alert') {
           const a = evt.data;
           const deviceName = a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị';
+          const deviceId = a.device_id || (a.device && a.device.id) || null;
           // vibrate and navigate to FireAlertScreen
           Vibration.vibrate([500, 500]);
           try {
-            navigationRef.current?.navigate('FireAlertScreen', { deviceName });
+            navigationRef.current?.navigate('FireAlertScreen', { deviceName, deviceId });
           } catch (e) {
             // ignore navigation errors
           }

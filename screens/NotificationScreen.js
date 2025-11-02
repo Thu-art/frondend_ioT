@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from "react
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import { connectAlertsStream } from "../src/utils/sse";
-import { createAlert, ackAlert } from "../src/services/alertService";
+import { ackAlert } from "../src/services/alertService";
 
 export default function NotificationScreen({ route, navigation }) {
   const [notifications, setNotifications] = useState([]);
@@ -22,10 +22,10 @@ export default function NotificationScreen({ route, navigation }) {
   useEffect(() => {
     if (route.params?.newAlert) {
       const raw = route.params.newAlert;
-      const norm = {
+        const norm = {
         id: raw.id || Date.now(),
         deviceName: raw.deviceName || raw.device_name || raw.device || 'Thi���t b��<',
-        deviceId: raw.deviceId || raw.device_id || null,
+        deviceId: raw.deviceId || raw.device_id || (raw.device && raw.device.id) || null,
         time: fmt(raw.time || raw.created_at),
         message: raw.message || ''
       };
@@ -40,13 +40,8 @@ export default function NotificationScreen({ route, navigation }) {
           if (!list.some(a => a.syncKey === withSync.syncKey)) {
             const newList = [withSync, ...list];
             await AsyncStorage.setItem(key, JSON.stringify(newList));
-            try {
-              if (withSync.deviceId) {
-                await createAlert({ device_id: withSync.deviceId, type: 'smoke', level: 0, message: withSync.message, syncKey: withSync.syncKey });
-              }
-              const remaining = newList.filter(l => l.syncKey !== withSync.syncKey);
-              await AsyncStorage.setItem(key, JSON.stringify(remaining));
-            } catch (e) {}
+            const remaining = newList.filter(l => l.syncKey !== withSync.syncKey);
+            await AsyncStorage.setItem(key, JSON.stringify(remaining));
           }
         } catch (e) {}
       })();
@@ -75,6 +70,7 @@ export default function NotificationScreen({ route, navigation }) {
             const mapped = (evt.data || []).map(a => ({
               id: a.id,
               deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị',
+              deviceId: a.device_id || (a.device && a.device.id) || null,
               time: fmt(a.created_at || a.createdAt),
               message: a.message || ''
             }));
@@ -85,7 +81,7 @@ export default function NotificationScreen({ route, navigation }) {
             });
           } else if (evt.type === 'alert') {
             const a = evt.data;
-            const norm = { id: a.id, deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị', time: fmt(a.created_at || a.createdAt), message: a.message || '' };
+            const norm = { id: a.id, deviceName: a.device_name || (a.device && a.device.name) || a.deviceName || 'Thiết bị', deviceId: a.device_id || (a.device && a.device.id) || null, time: fmt(a.created_at || a.createdAt), message: a.message || '' };
             setNotifications(prev => [norm, ...prev]);
           }
         },
@@ -127,18 +123,7 @@ export default function NotificationScreen({ route, navigation }) {
 
         <Text style={styles.headerTitle}>📢 Thông báo</Text>
 
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              "Đăng xuất",
-              "Bạn có chắc muốn đăng xuất?",
-              [
-                { text: "Huỷ", style: "cancel" },
-                { text: "Đăng xuất", style: "destructive", onPress: () => navigation.navigate("LoginScreen") }
-              ]
-            )
-          }
-        >
+        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: "DeviceListScreen" }] })}>
           <Ionicons name="home-outline" size={28} color="#ff4444" />
         </TouchableOpacity>
       </View>

@@ -45,18 +45,7 @@ export default function AddDeviceScreen({ navigation, route }) {
 
         <Text style={styles.headerTitle}>Thêm thiết bị báo cháy</Text>
 
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              "Đăng xuất",
-              "Bạn có chắc muốn đăng xuất?",
-              [
-                { text: "Huỷ", style: "cancel" },
-                { text: "Đăng xuất", style: "destructive", onPress: () => navigation.navigate("LoginScreen") }
-              ]
-            )
-          }
-        >
+        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: "DeviceListScreen" }] })}>
           <Ionicons name="home-outline" size={28} color="#ff4444" />
         </TouchableOpacity>
       </View>
