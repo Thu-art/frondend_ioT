@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { listDevices } from "../src/services/deviceService";
+import { AuthContext } from "../src/context/AuthProvider";
 
 export default function DeviceListScreen({ navigation, route }) {
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const { signOut } = useContext(AuthContext);
 
   useEffect(() => {
     let mounted = true;
@@ -84,12 +86,22 @@ export default function DeviceListScreen({ navigation, route }) {
               "Bạn có chắc muốn đăng xuất?",
               [
                 { text: "Huỷ", style: "cancel" },
-                { text: "Đăng xuất", style: "destructive", onPress: () => { navigation.navigate("LoginScreen"); }}
+                {
+                  text: "Đăng xuất",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await signOut();
+                    } finally {
+                      navigation.reset({ index: 0, routes: [{ name: "LoginScreen" }] });
+                    }
+                  }
+                }
               ]
             )
           }
         >
-          <Ionicons name="home-outline" size={28} color="#ff4444" />
+          <Ionicons name="log-out-outline" size={28} color="#ff4444" />
         </TouchableOpacity>
       </View>
 

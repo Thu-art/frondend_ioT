@@ -1,21 +1,20 @@
 // Prefer native EventSource (real SSE) and fall back to polling if unavailable.
 // Keeps the same callback shape for consumers.
 import { API_BASE_URL } from '../config/apiConfig';
+import client from '../api/client';
 
 function startPolling({ baseUrl, token, onEvent, onOpen, onError }) {
   let stopped = false;
   let lastSeenId = null;
   let timer = null;
 
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
   const poll = async () => {
     if (stopped) return;
     try {
-      const res = await fetch(`${baseUrl}/alerts?active=true`, { headers: authHeaders });
-      if (res.ok) {
-        const body = await res.json();
-        const alerts = body?.alerts || [];
+      // Use axios client so auth header + refresh flow apply automatically
+      const res = await client.get('/alerts', { params: { active: true } });
+      if (res && res.status === 200) {
+        const alerts = res.data?.alerts || [];
         if (!lastSeenId && alerts.length) {
           lastSeenId = alerts[0].id;
           onEvent?.({ type: 'snapshot', data: alerts });
@@ -47,58 +46,6 @@ function startPolling({ baseUrl, token, onEvent, onOpen, onError }) {
 
 export function connectAlertsStream(token, onEvent, onOpen, onError) {
   const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
-  const EventSourceImpl = global?.NativeEventSource || global?.EventSource;
-
-  if (!EventSourceImpl) {
-    return startPolling({ baseUrl, token, onEvent, onOpen, onError });
-  }
-
-  const url = `${baseUrl}/stream/alerts${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-  let closed = false;
-  let fallbackCleanup = null;
-  let source;
-
-  try {
-    source = new EventSourceImpl(url);
-  } catch (err) {
-    onError?.(err);
-    return startPolling({ baseUrl, token, onEvent, onOpen, onError });
-  }
-
-  const cleanup = () => {
-    closed = true;
-    source.close();
-    if (fallbackCleanup) {
-      fallbackCleanup();
-      fallbackCleanup = null;
-    }
-  };
-
-  const deliver = (type, raw) => {
-    if (closed || raw == null) return;
-    try {
-      const parsed = raw.length ? JSON.parse(raw) : null;
-      if (parsed !== null) onEvent?.({ type, data: parsed });
-    } catch (err) {
-      onError?.(err);
-    }
-  };
-
-  source.addEventListener('open', () => {
-    if (!closed) onOpen?.();
-  });
-
-  source.addEventListener('snapshot', (evt) => deliver('snapshot', evt?.data));
-  source.addEventListener('alert', (evt) => deliver('alert', evt?.data));
-  source.addEventListener('error', (evt) => {
-    if (closed) return;
-    const err = evt instanceof Error ? evt : new Error('SSE connection error');
-    onError?.(err);
-    source.close();
-    if (!fallbackCleanup) {
-      fallbackCleanup = startPolling({ baseUrl, token, onEvent, onOpen, onError });
-    }
-  });
-
-  return cleanup;
+  // Force polling only, ignore EventSource/SSE
+  return startPolling({ baseUrl, token, onEvent, onOpen, onError });
 }

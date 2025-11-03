@@ -1,8 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { login as apiLogin, logout as apiLogout, getCurrentUser, signup as apiSignup } from '../api/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { registerFcmToken, unregisterFcmToken } from '../services/fcmService';
-import * as Notifications from 'expo-notifications';
+import { unregisterFcmToken } from '../services/fcmService';
 
 export const AuthContext = createContext({});
 
@@ -21,40 +20,14 @@ export function AuthProvider({ children }) {
   async function signIn(credentials) {
     const data = await apiLogin(credentials);
     setUser(data.user);
-    // Try to obtain and register FCM token (Expo EAS builds)
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        const devPush = await Notifications.getDevicePushTokenAsync({ provider: 'fcm' });
-        const token = devPush?.data;
-        if (token) {
-          await AsyncStorage.setItem('fcmToken', token);
-          const platform = 'android'; // simple default; adjust if needed
-          await registerFcmToken(token, platform);
-        }
-      }
-    } catch (e) {
-      // Ignore if not configured for FCM in dev
-    }
+    // Push notifications disabled in Expo Go; skip FCM registration
     return data;
   }
 
   async function signUp(payload) {
     const data = await apiSignup(payload);
     setUser(data.user);
-    // Same as signIn – register token after signup
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        const devPush = await Notifications.getDevicePushTokenAsync({ provider: 'fcm' });
-        const token = devPush?.data;
-        if (token) {
-          await AsyncStorage.setItem('fcmToken', token);
-          const platform = 'android';
-          await registerFcmToken(token, platform);
-        }
-      }
-    } catch (e) {}
+    // Push notifications disabled; skip FCM registration
     return data;
   }
 

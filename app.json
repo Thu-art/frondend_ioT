@@ -20,14 +20,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.myapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
-    ,
+    },
     "extra": {
       "API_BASE_URL": "http://192.168.0.10:4000"
-    }
+    },
+    "plugins": [
+      "expo-video"
+    ]
   }
 }
